@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.platform.compat.toNewPlatform
 import org.jetbrains.kotlin.platform.impl.JvmIdePlatformKind
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.psi.NotNullableUserDataProperty
+import java.io.File
 import kotlin.reflect.KProperty1
 
 var Module.hasExternalSdkConfiguration: Boolean
@@ -356,6 +357,9 @@ fun applyCompilerArgumentsToFacet(
         compilerArguments.pluginOptions = joinPluginOptions(oldPluginOptions, arguments.pluginOptions)
 
         compilerArguments.convertPathsToSystemIndependent()
+        (compilerArguments as? K2JVMCompilerArguments)?.classpath?.let {
+            classpathParts = it.split(File.pathSeparator)
+        }
 
         // Retain only fields exposed (and not explicitly ignored) in facet configuration editor.
         // The rest is combined into string and stored in CompilerSettings.additionalArguments

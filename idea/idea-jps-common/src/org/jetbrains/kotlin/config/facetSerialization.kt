@@ -125,6 +125,14 @@ fun Element.getFacetPlatformByConfigurationElement(): TargetPlatform {
     }.orDefault() // finally, fallback to the default platform
 }
 
+private fun readV4Config(element: Element): KotlinFacetSettings {
+    return readV2AndLaterConfig(element).apply {
+        readElementsList(element, "classpathParts", "classpathPart")?.let {
+            classpathParts = it
+        }
+    }
+}
+
 private fun readV2AndLaterConfig(element: Element): KotlinFacetSettings {
     return KotlinFacetSettings().apply {
         element.getAttributeValue("useProjectSettings")?.let { useProjectSettings = it.toBoolean() }
@@ -211,7 +219,7 @@ private fun readV2Config(element: Element): KotlinFacetSettings {
 }
 
 private fun readLatestConfig(element: Element): KotlinFacetSettings {
-    return readV2AndLaterConfig(element)
+    return readV4Config(element)
 }
 
 fun deserializeFacetSettings(element: Element): KotlinFacetSettings {
@@ -223,6 +231,7 @@ fun deserializeFacetSettings(element: Element): KotlinFacetSettings {
     return when (version) {
         1 -> readV1Config(element)
         2 -> readV2Config(element)
+        3 -> readV2AndLaterConfig(element)
         KotlinFacetSettings.CURRENT_VERSION -> readLatestConfig(element)
         else -> return KotlinFacetSettings() // Reset facet configuration if versions don't match
     }.apply { this.version = version }
@@ -301,7 +310,7 @@ private fun buildChildElement(element: Element, tag: String, bean: Any, filter: 
     }
 }
 
-private fun KotlinFacetSettings.writeLatestConfig(element: Element) {
+private fun KotlinFacetSettings.writeV2AndLaterConfig(element: Element) {
     val filter = SkipDefaultsSerializationFilter()
 
     // TODO: Introduce new version of facet serialization. See https://youtrack.jetbrains.com/issue/KT-38235
@@ -315,14 +324,8 @@ private fun KotlinFacetSettings.writeLatestConfig(element: Element) {
     }
     saveElementsList(element, implementedModuleNames, "implements", "implement")
     saveElementsList(element, dependsOnModuleNames, "dependsOnModuleNames", "dependsOn")
+    saveElementsList(element, sourceSetNames, "sourceSets", "sourceSet")
 
-    if (sourceSetNames.isNotEmpty()) {
-        element.addContent(
-            Element("sourceSets").apply {
-                sourceSetNames.map { addContent(Element("sourceSet").apply { addContent(it) }) }
-            }
-        )
-    }
     if (kind != KotlinModuleKind.DEFAULT) {
         element.addContent(Element("newMppModelJpsModuleKind").apply { addContent(kind.name) })
         element.setAttribute("isTestModule", isTestModule.toString())
@@ -337,7 +340,7 @@ private fun KotlinFacetSettings.writeLatestConfig(element: Element) {
         element.addContent(
             Element("externalSystemTestTasks").apply {
                 externalSystemRunTasks.forEach { task ->
-                    when(task) {
+                    when (task) {
                         is ExternalSystemTestRunTask -> {
                             addContent(
                                 Element("externalSystemTestTask").apply { addContent(task.toStringRepresentation()) }
@@ -410,7 +413,7 @@ fun Element.dropVersionsIfNecessary(settings: CommonCompilerArguments) {
 
 // Special treatment of v2 may be dropped after transition to IDEA 172
 private fun KotlinFacetSettings.writeV2Config(element: Element) {
-    writeLatestConfig(element)
+    writeV2AndLaterConfig(element)
     element.getChild("compilerArguments")?.let {
         it.getOption("coroutinesState")?.detach()
         val coroutineOption = when (compilerArguments?.coroutinesState) {
@@ -429,13 +432,22 @@ private fun KotlinFacetSettings.writeV2Config(element: Element) {
     }
 }
 
+private fun KotlinFacetSettings.writeV4Config(element: Element) {
+    (compilerArguments as? K2JVMCompilerArguments)?.also {
+        it.classpath = null
+    }
+    writeV2AndLaterConfig(element)
+    saveElementsList(element, classpathParts, "classpathParts", "classpathPart")
+}
+
+
 fun KotlinFacetSettings.serializeFacetSettings(element: Element) {
     val versionToWrite = if (version == 2) version else KotlinFacetSettings.CURRENT_VERSION
     element.setAttribute("version", versionToWrite.toString())
-    if (versionToWrite == 2) {
-        writeV2Config(element)
-    } else {
-        writeLatestConfig(element)
+    when (versionToWrite) {
+        2 -> writeV2Config(element)
+        3 -> writeV2AndLaterConfig(element)
+        else -> writeV4Config(element)
     }
 }
 

@@ -8,10 +8,8 @@ package org.jetbrains.kotlin.config
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import org.jetbrains.kotlin.cli.common.arguments.Argument
-import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
-import org.jetbrains.kotlin.cli.common.arguments.copyBean
-import org.jetbrains.kotlin.cli.common.arguments.parseCommandLineArguments
+import com.intellij.util.PathUtil
+import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.platform.IdePlatformKind
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.TargetPlatformVersion
@@ -19,7 +17,9 @@ import org.jetbrains.kotlin.platform.compat.toIdePlatform
 import org.jetbrains.kotlin.platform.isCommon
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.utils.DescriptionAware
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
+import java.io.File
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.findAnnotation
 
@@ -183,7 +183,7 @@ data class ExternalSystemNativeMainRunTask(
 class KotlinFacetSettings {
     companion object {
         // Increment this when making serialization-incompatible changes to configuration data
-        val CURRENT_VERSION = 3
+        val CURRENT_VERSION = 4
         val DEFAULT_VERSION = 0
     }
 
@@ -298,6 +298,17 @@ class KotlinFacetSettings {
 
     var kind: KotlinModuleKind = KotlinModuleKind.DEFAULT
     var sourceSetNames: List<String> = emptyList()
+    var classpathParts: List<String> = emptyList()
+        set(value) {
+            field = value.map { PathUtil.toSystemIndependentName(it) }
+            (compilerArguments as? K2JVMCompilerArguments)?.also {
+                it.classpath = classpath
+            }
+        }
+
+    val classpath: String?
+        get() = classpathParts.ifNotEmpty { joinToString(File.pathSeparator) }
+
     var isTestModule: Boolean = false
 
     var externalProjectId: String = ""

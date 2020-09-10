@@ -173,6 +173,7 @@ class KotlinGradleLibraryDataService : AbstractProjectDataService<LibraryData, V
     ) {
         if (toImport.isEmpty()) return
         val projectDataNode = toImport.first().parent!!
+
         @Suppress("UNCHECKED_CAST")
         val moduleDataNodes = projectDataNode.children.filter { it.data is ModuleData } as List<DataNode<ModuleData>>
         val anyNonJvmModules = moduleDataNodes
@@ -332,11 +333,12 @@ private fun getExplicitOutputPath(moduleNode: DataNode<ModuleData>, platformKind
 
 internal fun adjustClasspath(kotlinFacet: KotlinFacet, dependencyClasspath: List<String>) {
     if (dependencyClasspath.isEmpty()) return
-    val arguments = kotlinFacet.configuration.settings.compilerArguments as? K2JVMCompilerArguments ?: return
-    val fullClasspath = arguments.classpath?.split(File.pathSeparator) ?: emptyList()
-    if (fullClasspath.isEmpty()) return
-    val newClasspath = fullClasspath - dependencyClasspath
-    arguments.classpath = if (newClasspath.isNotEmpty()) newClasspath.joinToString(File.pathSeparator) else null
+    with(kotlinFacet.configuration.settings) {
+        if (compilerArguments !is K2JVMCompilerArguments) return
+        val fullClasspath = classpathParts
+        if (fullClasspath.isEmpty()) return
+        classpathParts = fullClasspath - dependencyClasspath
+    }
 }
 
 internal fun findKotlinCoroutinesProperty(project: Project): String {
