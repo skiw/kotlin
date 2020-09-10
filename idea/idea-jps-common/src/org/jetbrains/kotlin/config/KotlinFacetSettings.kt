@@ -180,6 +180,15 @@ data class ExternalSystemNativeMainRunTask(
     }
 }
 
+data class CompilerArgumentsFacetData(
+    val classpathElements: List<String>,
+    val languageVersion: String?,
+    val apiVersion: String?,
+    val platformIdentifier: String?,
+    val coroutinesStateIdentifier: String?,
+
+    )
+
 class KotlinFacetSettings {
     companion object {
         // Increment this when making serialization-incompatible changes to configuration data

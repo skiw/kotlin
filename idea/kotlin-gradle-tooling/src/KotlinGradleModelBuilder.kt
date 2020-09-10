@@ -48,24 +48,26 @@ fun CompilerArgumentsBySourceSet.deepCopy(): CompilerArgumentsBySourceSet {
 
 interface KotlinGradleModel : Serializable {
     val hasKotlinPlugin: Boolean
-    val compilerArgumentsBySourceSet: CompilerArgumentsBySourceSet
+    val cachedCompilerArgumentsBySourceSet: CachedCompilerArgumentBySourceSet
     val coroutines: String?
     val platformPluginId: String?
     val implements: List<String>
     val kotlinTarget: String?
     val kotlinTaskProperties: KotlinTaskPropertiesBySourceSet
     val gradleUserHome: String
+    val compilerArgumentsMapper: ICompilerArgumentsMapper
 }
 
 data class KotlinGradleModelImpl(
     override val hasKotlinPlugin: Boolean,
-    override val compilerArgumentsBySourceSet: CompilerArgumentsBySourceSet,
+    override val cachedCompilerArgumentsBySourceSet: CachedCompilerArgumentBySourceSet,
     override val coroutines: String?,
     override val platformPluginId: String?,
     override val implements: List<String>,
     override val kotlinTarget: String? = null,
     override val kotlinTaskProperties: KotlinTaskPropertiesBySourceSet,
-    override val gradleUserHome: String
+    override val gradleUserHome: String,
+    override val compilerArgumentsMapper: ICompilerArgumentsMapper
 ) : KotlinGradleModel
 
 abstract class AbstractKotlinGradleModelBuilder : ModelBuilderService {
@@ -162,11 +164,27 @@ class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
         }
     }
 
+    private fun List<String>.divideToCommonAndClasspathArguments(
+        commonArguments: MutableList<String>,
+        classpathArguments: MutableList<String>
+    ) {
+        val classpathArgumentsIndexes = flatMapIndexed { index: Int, s: String ->
+            if ("-classpath" in s || "-cp" in s) listOf(index, index + 1) else emptyList()
+        }.toSet()
+        filterIndexed { index, _ -> index !in classpathArgumentsIndexes }.toCollection(commonArguments)
+        classpathArgumentsIndexes.map { this[it] }
+            .toCollection(classpathArguments)
+    }
+
+    private val modelBuilderMapper = CompilerArgumentsMapperWithCheckout()
+
     override fun buildAll(modelName: String?, project: Project): KotlinGradleModelImpl {
+        val modelDetachableMapper = modelBuilderMapper.checkoutMapper()
+
         val kotlinPluginId = kotlinPluginIds.singleOrNull { project.plugins.findPlugin(it) != null }
         val platformPluginId = platformPluginIds.singleOrNull { project.plugins.findPlugin(it) != null }
 
-        val compilerArgumentsBySourceSet = LinkedHashMap<String, ArgsInfo>()
+        val cachedArgumentsBySourceSet = LinkedHashMap<String, CachedArgsInfo>()
         val extraProperties = HashMap<String, KotlinTaskProperties>()
 
         project.getAllTasks(false)[project]?.forEach { compileTask ->
@@ -174,25 +192,55 @@ class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
 
             val sourceSetName = compileTask.getSourceSetName()
             val currentArguments = compileTask.getCompilerArguments("getSerializedCompilerArguments")
-                ?: compileTask.getCompilerArguments("getSerializedCompilerArgumentsIgnoreClasspathIssues") ?: emptyList()
+                ?: compileTask.getCompilerArguments("getSerializedCompilerArgumentsIgnoreClasspathIssues")
+                ?: emptyList()
+
+
+            val currentClasspathArguments = mutableListOf<String>()
+            val currentCommonArguments = mutableListOf<String>()
+            currentArguments.divideToCommonAndClasspathArguments(currentCommonArguments, currentClasspathArguments)
+            val currentCommonArgumentCacheIds =
+                currentCommonArguments.map { modelDetachableMapper.cacheCommonArgument(it) }.toTypedArray()
+            val currentClasspathArgumentCacheIds =
+                currentClasspathArguments.map { modelDetachableMapper.cacheClasspathArgument(it) }.toTypedArray()
+
             val defaultArguments = compileTask.getCompilerArguments("getDefaultSerializedCompilerArguments").orEmpty()
+            val defaultClasspathArguments = mutableListOf<String>()
+            val defaultCommonArguments = mutableListOf<String>()
+            defaultArguments.divideToCommonAndClasspathArguments(defaultCommonArguments, defaultClasspathArguments)
+            val defaultCommonArgumentCacheIds =
+                defaultCommonArguments.map { modelDetachableMapper.cacheCommonArgument(it) }.toTypedArray()
+            val defaultClasspathArgumentCacheIds =
+                defaultClasspathArguments.map { modelDetachableMapper.cacheClasspathArgument(it) }.toTypedArray()
+
             val dependencyClasspath = compileTask.getDependencyClasspath()
-            compilerArgumentsBySourceSet[sourceSetName] = ArgsInfoImpl(currentArguments, defaultArguments, dependencyClasspath)
+            val dependencyClasspathCacheIds =
+                dependencyClasspath.map { modelDetachableMapper.cacheClasspathArgument(it) }.toTypedArray()
+            cachedArgumentsBySourceSet[sourceSetName] = CachedArgsInfoImpl(
+                currentCommonArgumentCacheIds,
+                currentClasspathArgumentCacheIds,
+                defaultCommonArgumentCacheIds,
+                defaultClasspathArgumentCacheIds,
+                dependencyClasspathCacheIds
+            )
             extraProperties.acknowledgeTask(compileTask, null)
         }
 
         val platform = platformPluginId ?: pluginToPlatform.entries.singleOrNull { project.plugins.findPlugin(it.key) != null }?.value
         val implementedProjects = getImplementedProjects(project)
 
+        val detachedMapper = modelDetachableMapper.detach()
+
         return KotlinGradleModelImpl(
             kotlinPluginId != null || platformPluginId != null,
-            compilerArgumentsBySourceSet,
+            cachedArgumentsBySourceSet,
             getCoroutines(project),
             platform,
             implementedProjects.map { it.pathOrName() },
             platform ?: kotlinPluginId,
             extraProperties,
-            project.gradle.gradleUserHomeDir.absolutePath
+            project.gradle.gradleUserHomeDir.absolutePath,
+            detachedMapper
         )
     }
 }
