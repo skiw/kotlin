@@ -157,7 +157,7 @@ fun IrExpression.isFalseConst() = this is IrConst<*> && this.kind == IrConstKind
 fun IrExpression.isIntegerConst(value: Int) = this is IrConst<*> && this.kind == IrConstKind.Int && this.value == value
 
 @OptIn(ObsoleteDescriptorBasedAPI::class)
-fun IrExpression.coerceToUnit(builtins: IrBuiltIns): IrExpression {
+fun IrExpression.coerceToUnitViaKotlinType(builtins: IrBuiltIns): IrExpression {
     return coerceToUnitIfNeeded(type.toKotlinType(), builtins)
 }
 
@@ -173,6 +173,10 @@ fun IrExpression.coerceToUnitIfNeeded(valueType: KotlinType, irBuiltIns: IrBuilt
             irBuiltIns.unitType,
             this
         )
+}
+
+fun IrExpression.coerceToUnit(builtins: IrBuiltIns): IrExpression {
+    return coerceToUnitIfNeeded(type, builtins)
 }
 
 fun IrExpression.coerceToUnitIfNeeded(valueType: IrType, irBuiltIns: IrBuiltIns): IrExpression {
