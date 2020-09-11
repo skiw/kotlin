@@ -105,6 +105,10 @@ abstract class AbstractKotlinGradleModelBuilder : ModelBuilderService {
 }
 
 class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
+    companion object {
+        private val modelBuilderMapper = CompilerArgumentsMapperWithCheckout()
+    }
+
     override fun getErrorMessageBuilder(project: Project, e: Exception): ErrorMessageBuilder {
         return ErrorMessageBuilder.create(project, e, "Gradle import errors")
             .withDescription("Unable to build Kotlin project configuration")
@@ -175,8 +179,6 @@ class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
         classpathArgumentsIndexes.map { this[it] }
             .toCollection(classpathArguments)
     }
-
-    private val modelBuilderMapper = CompilerArgumentsMapperWithCheckout()
 
     override fun buildAll(modelName: String?, project: Project): KotlinGradleModelImpl {
         val modelDetachableMapper = modelBuilderMapper.checkoutMapper()

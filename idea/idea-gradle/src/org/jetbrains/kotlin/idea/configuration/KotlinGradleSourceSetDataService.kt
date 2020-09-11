@@ -40,6 +40,8 @@ import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.extensions.ProjectExtensionDescriptor
 import org.jetbrains.kotlin.gradle.ArgsInfo
 import org.jetbrains.kotlin.gradle.ArgsInfoImpl
+import org.jetbrains.kotlin.gradle.CachedArgsInfo
+import org.jetbrains.kotlin.gradle.CompilerArgumentsMapperWithMerge
 import org.jetbrains.kotlin.ide.konan.NativeLibraryKind
 import org.jetbrains.kotlin.idea.compiler.configuration.KotlinCommonCompilerArgumentsHolder
 import org.jetbrains.kotlin.idea.configuration.GradlePropertiesFileFacade.Companion.KOTLIN_CODE_STYLE_GRADLE_SETTING
@@ -292,16 +294,7 @@ fun configureFacetByGradleModule(
 
     val cachedArgsInfo = moduleNode.cachedCompilerArgumentsBySourceSet?.get(sourceSetName ?: "main")
     if (cachedArgsInfo != null) {
-        val currentArguments = cachedArgsInfo.currentCachedArgumentIds.map { mapper.getCommonArgument(it) } +
-                cachedArgsInfo.currentCachedClasspathArgumentIds.map { mapper.getClasspathArgument(it) }
-
-        val defaultArguments = cachedArgsInfo.defaultCachedArgumentsIds.map { mapper.getCommonArgument(it) }
-
-        val dependencyClasspath = cachedArgsInfo.dependencyClasspathCacheIds.map { mapper.getClasspathArgument(it) }
-
-        val argsInfo = ArgsInfoImpl(currentArguments, defaultArguments, dependencyClasspath)
-        configureFacetByCompilerArguments(kotlinFacet, argsInfo, modelsProvider)
-
+        configureFacetByCachedCompilerArguments(cachedArgsInfo, mapper, kotlinFacet, modelsProvider)
     }
 
     with(kotlinFacet.configuration.settings) {
@@ -317,6 +310,23 @@ fun configureFacetByGradleModule(
     }
 
     return kotlinFacet
+}
+
+private fun configureFacetByCachedCompilerArguments(
+    cachedArgsInfo: CachedArgsInfo,
+    mapper: CompilerArgumentsMapperWithMerge,
+    kotlinFacet: KotlinFacet,
+    modelsProvider: IdeModifiableModelsProvider
+) {
+    val currentArguments = cachedArgsInfo.currentCachedArgumentIds.map { mapper.getCommonArgument(it) } +
+            cachedArgsInfo.currentCachedClasspathArgumentIds.map { mapper.getClasspathArgument(it) }
+
+    val defaultArguments = cachedArgsInfo.defaultCachedArgumentsIds.map { mapper.getCommonArgument(it) }
+
+    val dependencyClasspath = cachedArgsInfo.dependencyClasspathCacheIds.map { mapper.getClasspathArgument(it) }
+
+    val argsInfo = ArgsInfoImpl(currentArguments, defaultArguments, dependencyClasspath)
+    configureFacetByCompilerArguments(kotlinFacet, argsInfo, modelsProvider)
 }
 
 fun configureFacetByCompilerArguments(kotlinFacet: KotlinFacet, argsInfo: ArgsInfo, modelsProvider: IdeModifiableModelsProvider?) {
