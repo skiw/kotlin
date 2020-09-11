@@ -292,11 +292,10 @@ fun configureFacetByGradleModule(
 
     val cachedArgsInfo = moduleNode.cachedCompilerArgumentsBySourceSet?.get(sourceSetName ?: "main")
     if (cachedArgsInfo != null) {
-        val currentArguments = cachedArgsInfo.currentCommonArgumentsCacheIds.map { mapper.getCommonArgument(it) } +
-                cachedArgsInfo.currentClasspathArgumentsCacheIds.map { mapper.getClasspathArgument(it) }
+        val currentArguments = cachedArgsInfo.currentCachedArgumentIds.map { mapper.getCommonArgument(it) } +
+                cachedArgsInfo.currentCachedClasspathArgumentIds.map { mapper.getClasspathArgument(it) }
 
-        val defaultArguments = cachedArgsInfo.defaultCommonArgumentsCacheIds.map { mapper.getCommonArgument(it) } +
-                cachedArgsInfo.defaultClasspathArgumentsCacheIds.map { mapper.getClasspathArgument(it) }
+        val defaultArguments = cachedArgsInfo.defaultCachedArgumentsIds.map { mapper.getCommonArgument(it) }
 
         val dependencyClasspath = cachedArgsInfo.dependencyClasspathCacheIds.map { mapper.getClasspathArgument(it) }
 
@@ -339,7 +338,7 @@ private fun getExplicitOutputPath(moduleNode: DataNode<ModuleData>, platformKind
     val mapper = projectDataNode.projectCompilerArgumentsMapper
 
     val k2jsArgumentList = moduleNode.cachedCompilerArgumentsBySourceSet?.get(sourceSet)
-        ?.currentCommonArgumentsCacheIds?.map { mapper.getCommonArgument(it) }
+        ?.currentCachedArgumentIds?.map { mapper.getCommonArgument(it) }
         ?: return null
     return K2JSCompilerArguments().apply { parseCommandLineArguments(k2jsArgumentList, this) }.outputFile
 }

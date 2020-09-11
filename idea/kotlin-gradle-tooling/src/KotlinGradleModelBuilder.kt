@@ -205,13 +205,8 @@ class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
                 currentClasspathArguments.map { modelDetachableMapper.cacheClasspathArgument(it) }.toTypedArray()
 
             val defaultArguments = compileTask.getCompilerArguments("getDefaultSerializedCompilerArguments").orEmpty()
-            val defaultClasspathArguments = mutableListOf<String>()
-            val defaultCommonArguments = mutableListOf<String>()
-            defaultArguments.divideToCommonAndClasspathArguments(defaultCommonArguments, defaultClasspathArguments)
-            val defaultCommonArgumentCacheIds =
-                defaultCommonArguments.map { modelDetachableMapper.cacheCommonArgument(it) }.toTypedArray()
-            val defaultClasspathArgumentCacheIds =
-                defaultClasspathArguments.map { modelDetachableMapper.cacheClasspathArgument(it) }.toTypedArray()
+            val defaultCachedArgumentIds =
+                defaultArguments.map { modelDetachableMapper.cacheCommonArgument(it) }.toTypedArray()
 
             val dependencyClasspath = compileTask.getDependencyClasspath()
             val dependencyClasspathCacheIds =
@@ -219,8 +214,7 @@ class KotlinGradleModelBuilder : AbstractKotlinGradleModelBuilder() {
             cachedArgumentsBySourceSet[sourceSetName] = CachedArgsInfoImpl(
                 currentCommonArgumentCacheIds,
                 currentClasspathArgumentCacheIds,
-                defaultCommonArgumentCacheIds,
-                defaultClasspathArgumentCacheIds,
+                defaultCachedArgumentIds,
                 dependencyClasspathCacheIds
             )
             extraProperties.acknowledgeTask(compileTask, null)

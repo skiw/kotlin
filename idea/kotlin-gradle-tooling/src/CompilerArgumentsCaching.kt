@@ -8,29 +8,26 @@ package org.jetbrains.kotlin.gradle
 import java.io.File
 import java.io.Serializable
 
-typealias CommonArgumentCacheIdType = Int
+typealias CachedArgumentIdType = Int
 typealias ClasspathArgumentCacheIdType = Array<Int>
 
 interface CachedArgsInfo : Serializable {
-    val currentCommonArgumentsCacheIds: Array<CommonArgumentCacheIdType>
-    val currentClasspathArgumentsCacheIds: Array<ClasspathArgumentCacheIdType>
-    val defaultCommonArgumentsCacheIds: Array<CommonArgumentCacheIdType>
-    val defaultClasspathArgumentsCacheIds: Array<ClasspathArgumentCacheIdType>
+    val currentCachedArgumentIds: Array<CachedArgumentIdType>
+    val currentCachedClasspathArgumentIds: Array<ClasspathArgumentCacheIdType>
+    val defaultCachedArgumentsIds: Array<CachedArgumentIdType>
     val dependencyClasspathCacheIds: Array<ClasspathArgumentCacheIdType>
 }
 
-data class CachedArgsInfoImpl(
-    override val currentCommonArgumentsCacheIds: Array<CommonArgumentCacheIdType>,
-    override val currentClasspathArgumentsCacheIds: Array<ClasspathArgumentCacheIdType>,
-    override val defaultCommonArgumentsCacheIds: Array<CommonArgumentCacheIdType>,
-    override val defaultClasspathArgumentsCacheIds: Array<ClasspathArgumentCacheIdType>,
+class CachedArgsInfoImpl(
+    override val currentCachedArgumentIds: Array<CachedArgumentIdType>,
+    override val currentCachedClasspathArgumentIds: Array<ClasspathArgumentCacheIdType>,
+    override val defaultCachedArgumentsIds: Array<CachedArgumentIdType>,
     override val dependencyClasspathCacheIds: Array<ClasspathArgumentCacheIdType>
 ) : CachedArgsInfo {
     constructor(cachedArgsInfo: CachedArgsInfo) : this(
-        arrayOf(*cachedArgsInfo.currentCommonArgumentsCacheIds),
-        arrayOf(*cachedArgsInfo.currentClasspathArgumentsCacheIds),
-        arrayOf(*cachedArgsInfo.defaultCommonArgumentsCacheIds),
-        arrayOf(*cachedArgsInfo.defaultClasspathArgumentsCacheIds),
+        arrayOf(*cachedArgsInfo.currentCachedArgumentIds),
+        arrayOf(*cachedArgsInfo.currentCachedClasspathArgumentIds),
+        arrayOf(*cachedArgsInfo.defaultCachedArgumentsIds),
         arrayOf(*cachedArgsInfo.dependencyClasspathCacheIds)
     )
 }
