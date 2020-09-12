@@ -76,8 +76,8 @@ class PerformanceStressTest : UsefulTestCase() {
                         )
 
                         with(config) {
-                            warmup = 8
-                            iterations = 15
+                            warmup = 2
+                            iterations = 3
                         }
 
                         measure<List<HighlightInfo>>("type override fun foo()", fixture = fixture) {
